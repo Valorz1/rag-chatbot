@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Archive — Retrieval Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300..900;1,300..900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+    <style>
+        :root {
+            --bg: #0e0b07;
+            --bg-elev: #16120c;
+            --bg-card: #1c1711;
+            --bg-hover: #221c14;
+            --border: #2a2218;
+            --border-bright: #3a3024;
+            --rule: #1f1a13;
+
+            --text: #ece2cb;
+            --text-dim: #a89880;
+            --text-muted: #6b5e4a;
+            --text-faint: #4a4034;
+
+            --accent: #d4a35a;
+            --accent-bright: #f0c074;
+            --accent-dim: #8a6938;
+            --accent-glow: rgba(212, 163, 90, 0.18);
+
+            --danger: #c97559;
+            --success: #88a572;
+
+            --serif: 'Fraunces', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+            --mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+
+            --shadow-sm: 0 1px 0 rgba(255, 230, 180, 0.03), 0 1px 2px rgba(0,0,0,0.4);
+            --shadow-lg: 0 30px 80px -20px rgba(0,0,0,0.6), 0 0 0 1px rgba(255, 230, 180, 0.02);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 14px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 100;
+            background-image:
+                radial-gradient(ellipse at top, transparent 0%, rgba(0,0,0,0.4) 100%),
+                url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.8 0 0 0 0 0.7 0 0 0 0 0.5 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            mix-blend-mode: overlay;
+            opacity: 0.6;
+        }
+
+        .app {
+            display: grid;
+            grid-template-rows: 44px 1fr;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ─── TOP BAR ─── */
+        .topbar {
+            display: grid;
+            grid-template-columns: 320px 1fr auto;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-elev);
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .brand {
+            padding: 0 20px;
+            border-right: 1px solid var(--border);
+            height: 100%;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-mark {
+            font-family: var(--serif);
+            font-weight: 500;
+            font-size: 18px;
+            font-style: italic;
+            color: var(--text);
+            letter-spacing: -0.01em;
+            text-transform: none;
+            line-height: 1;
+        }
+        .brand-mark::first-letter { color: var(--accent); }
+        .brand-sub {
+            color: var(--text-faint);
+            font-size: 9px;
+            letter-spacing: 0.18em;
+            margin-top: 2px;
+        }
+
+        .topbar-center {
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            padding: 0 24px;
+            justify-content: center;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .meta-item .label { color: var(--text-faint); }
+        .meta-item .value { color: var(--text-dim); }
+
+        .persona-select {
+            background: transparent;
+            border: 1px solid var(--border-bright);
+            color: var(--accent);
+            font-family: var(--mono);
+            font-size: 10px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 3px 22px 3px 8px;
+            cursor: pointer;
+            outline: none;
+            appearance: none;
+            background-image: linear-gradient(45deg, transparent 50%, var(--accent) 50%),
+                              linear-gradient(135deg, var(--accent) 50%, transparent 50%);
+            background-position: calc(100% - 11px) 50%, calc(100% - 7px) 50%;
+            background-size: 4px 4px;
+            background-repeat: no-repeat;
+        }
+        .persona-select:hover { border-color: var(--accent-dim); }
+        .persona-select option { background: var(--bg-elev); color: var(--text); }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            height: 100%;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 20px;
+            height: 100%;
+            border-left: 1px solid var(--border);
+            color: var(--text-dim);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+        .status-dot.ready {
+            background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+            animation: breathe 2.4s ease-in-out infinite;
+        }
+        .status-dot.warn {
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent);
+            animation: breathe 1.6s ease-in-out infinite;
+        }
+        .status-dot.offline { background: var(--danger); }
+
+        @keyframes breathe {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
+
+        .main {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            overflow: hidden;
+        }
+
+        /* ─── LEFT RAIL ─── */
+        .rail {
+            border-right: 1px solid var(--border);
+            background: var(--bg-elev);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .rail-section {
+            padding: 20px;
+            border-bottom: 1px solid var(--rule);
+        }
+
+        .rail-heading {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .rail-heading h3 {
+            font-family: var(--serif);
+            font-style: italic;
+            font-weight: 400;
+            font-size: 16px;
+            color: var(--text);
+            letter-spacing: -0.01em;
+        }
+
+        .rail-heading .num {
+            font-family: var(--mono);
+            font-size: 10px;
+            color: var(--text-faint);
+            letter-spacing: 0.15em;
+        }
+
+        .index-card {
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+
+        .index-state {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .index-state .dot {
+            width: 8px;
+            height: 8px;
+            background: var(--text-muted);
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .index-state.ready .dot { background: var(--success); box-shadow: 0 0 6px var(--success); }
+        .index-state.warn .dot { background: var(--accent); }
+        .index-state.offline .dot { background: var(--danger); }
+
+        .index-state .text { font-size: 12px; color: var(--text-dim); }
+
+        .index-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 14px;
+            padding-top: 10px;
+            border-top: 1px dashed var(--border);
+        }
+
+        .index-meta .item { font-size: 10px; }
+        .index-meta .item .k {
+            color: var(--text-faint);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            display: block;
+            margin-bottom: 2px;
+        }
+        .index-meta .item .v {
+            color: var(--text);
+            font-size: 13px;
+        }
+
+        .btn-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        button {
+            font-family: var(--mono);
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 9px 12px;
+            border: 1px solid var(--border-bright);
+            background: transparent;
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            position: relative;
+        }
+
+        button:hover:not(:disabled) {
+            border-color: var(--accent-dim);
+            color: var(--text);
+            background: var(--bg-hover);
+        }
+
+        button.primary {
+            border-color: var(--accent-dim);
+            color: var(--accent);
+            background: rgba(212, 163, 90, 0.06);
+        }
+        button.primary:hover:not(:disabled) {
+            background: rgba(212, 163, 90, 0.14);
+            color: var(--accent-bright);
+            border-color: var(--accent);
+        }
+
+        button:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        /* Topic card */
+        .topic-card {
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            padding: 14px;
+        }
+
+        .topic-input {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: var(--serif);
+            font-style: italic;
+            font-size: 14px;
+            padding: 8px 10px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .topic-input:focus { border-color: var(--accent-dim); }
+        .topic-input::placeholder { color: var(--text-faint); }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 12px;
+            font-size: 10px;
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .toggle {
+            position: relative;
+            width: 30px;
+            height: 16px;
+            background: var(--border-bright);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            transition: all 0.2s;
+        }
+        .toggle.on {
+            background: var(--accent-dim);
+        }
+        .toggle.on::after {
+            left: 16px;
+            background: var(--accent-bright);
+        }
+
+        .topic-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-top: 12px;
+        }
+
+        /* Sources */
+        .source {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--rule);
+            transition: padding 0.2s;
+        }
+        .source:last-child { border-bottom: none; }
+        .source:hover { padding-left: 6px; }
+
+        .source-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .source-title {
+            font-family: var(--serif);
+            font-size: 14px;
+            color: var(--text);
+            font-weight: 400;
+            line-height: 1.3;
+        }
+
+        .source-num {
+            font-family: var(--mono);
+            font-size: 9px;
+            color: var(--text-faint);
+            letter-spacing: 0.1em;
+        }
+
+        .source-meta {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            letter-spacing: 0.05em;
+        }
+
+        .source-snippet {
+            font-family: var(--serif);
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 6px;
+            font-style: italic;
+            line-height: 1.5;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.2s;
+        }
+        .source.expanded .source-snippet {
+            max-height: 240px;
+            margin-top: 8px;
+        }
+
+        .empty-state {
+            font-family: var(--serif);
+            font-style: italic;
+            color: var(--text-faint);
+            font-size: 13px;
+            line-height: 1.6;
+            padding: 4px 0;
+        }
+
+        /* Log */
+        .log {
+            font-size: 10px;
+            color: var(--text-muted);
+            line-height: 1.7;
+            max-height: 160px;
+            overflow-y: auto;
+        }
+        .log-entry { display: flex; gap: 10px; }
+        .log-entry .time { color: var(--text-faint); flex-shrink: 0; }
+        .log-entry.warn .msg { color: var(--accent); }
+        .log-entry.err .msg { color: var(--danger); }
+        .log-entry.ok .msg { color: var(--success); }
+
+        /* ─── CHAT COLUMN ─── */
+        .chat {
+            display: grid;
+            grid-template-rows: 1fr auto;
+            overflow: hidden;
+            background:
+                radial-gradient(ellipse 80% 50% at 50% 0%, rgba(212, 163, 90, 0.025), transparent 70%),
+                var(--bg);
+        }
+
+        .transcript {
+            overflow-y: auto;
+            padding: 60px 64px 40px;
+        }
+
+        .transcript-inner {
+            max-width: 760px;
+            margin: 0 auto;
+        }
+
+        .welcome {
+            padding: 40px 0 60px;
+            border-bottom: 1px solid var(--rule);
+            margin-bottom: 40px;
+            animation: rise 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .welcome-eyebrow {
+            font-size: 10px;
+            letter-spacing: 0.3em;
+            color: var(--text-faint);
+            text-transform: uppercase;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .welcome-eyebrow::before {
+            content: '';
+            width: 24px;
+            height: 1px;
+            background: var(--accent-dim);
+        }
+
+        .welcome-title {
+            font-family: var(--serif);
+            font-weight: 300;
+            font-size: 56px;
+            line-height: 1;
+            letter-spacing: -0.03em;
+            color: var(--text);
+            margin-bottom: 24px;
+        }
+
+        .welcome-title em {
+            font-style: italic;
+            color: var(--accent);
+            font-weight: 300;
+        }
+
+        .welcome-body {
+            font-family: var(--serif);
+            font-size: 17px;
+            line-height: 1.55;
+            color: var(--text-dim);
+            max-width: 540px;
+            font-weight: 300;
+        }
+
+        .suggested {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 32px;
+        }
+        .suggested-prompt {
+            border: 1px solid var(--border);
+            padding: 16px;
+            text-align: left;
+            transition: all 0.2s;
+            cursor: pointer;
+            background: var(--bg-card);
+            font-family: var(--serif);
+            font-size: 14px;
+            color: var(--text-dim);
+            line-height: 1.4;
+            font-style: italic;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+        .suggested-prompt:hover {
+            border-color: var(--accent-dim);
+            background: var(--bg-hover);
+            color: var(--text);
+            transform: translateY(-1px);
+        }
+        .suggested-prompt::before {
+            content: '→';
+            color: var(--accent);
+            margin-right: 8px;
+            font-style: normal;
+        }
+
+        @keyframes rise {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .entry {
+            margin-bottom: 36px;
+            animation: rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .entry-header {
+            display: flex;
+            align-items: baseline;
+            gap: 14px;
+            margin-bottom: 12px;
+            font-size: 10px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--text-faint);
+        }
+
+        .entry-header .tag { color: var(--accent); font-weight: 600; }
+        .entry.user .entry-header .tag { color: var(--text-dim); }
+        .entry-header .rule { flex: 1; height: 1px; background: var(--rule); }
+
+        .entry-body {
+            font-family: var(--serif);
+            font-size: 17px;
+            line-height: 1.65;
+            color: var(--text);
+            font-weight: 300;
+        }
+
+        .entry-body > p { margin-bottom: 0.8em; }
+        .entry-body > p:last-child { margin-bottom: 0; }
+        .entry-body strong { color: var(--accent-bright); font-weight: 500; }
+        .entry-body em { font-style: italic; color: var(--text-dim); }
+        .entry-body a { color: var(--accent); text-decoration: underline; text-decoration-color: var(--accent-dim); }
+        .entry-body a:hover { color: var(--accent-bright); }
+        .entry-body code {
+            font-family: var(--mono);
+            font-size: 13px;
+            color: var(--accent);
+            background: rgba(212, 163, 90, 0.08);
+            padding: 1px 6px;
+            border-radius: 2px;
+        }
+        .entry-body pre {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 12px 16px;
+            margin: 12px 0;
+            overflow-x: auto;
+        }
+        .entry-body pre code { background: transparent; padding: 0; color: var(--text); font-size: 12px; }
+        .entry-body ul, .entry-body ol { margin: 0.4em 0 0.8em 1.6em; }
+        .entry-body li { margin-bottom: 0.3em; }
+        .entry-body blockquote {
+            border-left: 2px solid var(--accent-dim);
+            padding-left: 14px;
+            margin: 8px 0;
+            color: var(--text-dim);
+            font-style: italic;
+        }
+
+        .entry.user .entry-body {
+            font-family: var(--mono);
+            font-size: 14px;
+            color: var(--text);
+            padding-left: 16px;
+            border-left: 2px solid var(--accent);
+            line-height: 1.55;
+            white-space: pre-wrap;
+        }
+        .entry.user .entry-body::before {
+            content: '> ';
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .entry.system .entry-body {
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--text-muted);
+            font-style: normal;
+            border: 1px dashed var(--border-bright);
+            padding: 12px 16px;
+            background: var(--bg-card);
+        }
+        .entry.system.error .entry-body {
+            color: var(--danger);
+            border-color: var(--danger);
+            background: rgba(201, 117, 89, 0.05);
+        }
+        .entry.system.success .entry-body {
+            color: var(--success);
+            border-color: rgba(136, 165, 114, 0.4);
+            background: rgba(136, 165, 114, 0.05);
+        }
+
+        .entry-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .entry:hover .entry-actions { opacity: 1; }
+
+        .entry-actions button {
+            font-size: 9px;
+            padding: 4px 10px;
+            letter-spacing: 0.1em;
+            border-color: var(--border);
+        }
+
+        .badge-wiki {
+            display: inline-block;
+            font-family: var(--mono);
+            font-size: 9px;
+            color: var(--accent);
+            background: rgba(212, 163, 90, 0.1);
+            border: 1px solid var(--accent-dim);
+            padding: 1px 6px;
+            margin-left: 8px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .thinking {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+        .thinking-dots { display: flex; gap: 3px; }
+        .thinking-dots span {
+            width: 4px;
+            height: 4px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: pulse-dot 1.2s ease-in-out infinite;
+        }
+        .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 0.25; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1); }
+        }
+
+        /* ─── INPUT DOCK ─── */
+        .dock {
+            border-top: 1px solid var(--border);
+            background: var(--bg-elev);
+            padding: 20px 64px 24px;
+        }
+
+        .dock-inner {
+            max-width: 760px;
+            margin: 0 auto;
+        }
+
+        .input-frame {
+            display: flex;
+            align-items: flex-start;
+            gap: 0;
+            background: var(--bg-card);
+            border: 1px solid var(--border-bright);
+            transition: border-color 0.2s;
+            position: relative;
+        }
+
+        .input-frame:focus-within {
+            border-color: var(--accent-dim);
+            box-shadow: 0 0 0 4px var(--accent-glow);
+        }
+
+        .input-frame.disabled { opacity: 0.5; }
+
+        .input-prompt {
+            padding: 14px 0 14px 16px;
+            color: var(--accent);
+            font-family: var(--mono);
+            font-weight: 700;
+            font-size: 14px;
+            user-select: none;
+        }
+
+        #userInput {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            padding: 14px 12px;
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 14px;
+            resize: none;
+            min-height: 22px;
+            max-height: 200px;
+            line-height: 1.5;
+        }
+
+        #userInput::placeholder {
+            color: var(--text-faint);
+            font-style: italic;
+            font-family: var(--serif);
+            font-size: 15px;
+        }
+
+        .input-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px 10px 0;
+        }
+
+        .kbd {
+            font-family: var(--mono);
+            font-size: 10px;
+            color: var(--text-faint);
+            border: 1px solid var(--border-bright);
+            padding: 2px 6px;
+            background: var(--bg);
+        }
+
+        #sendBtn {
+            border: 1px solid var(--accent-dim);
+            background: var(--accent);
+            color: var(--bg);
+            padding: 8px 16px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        #sendBtn:hover:not(:disabled) {
+            background: var(--accent-bright);
+            color: var(--bg);
+        }
+
+        .dock-footer {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 12px;
+            font-size: 10px;
+            color: var(--text-faint);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .dock-footer .left { display: flex; gap: 16px; }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-bright); }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
+
+        ::selection { background: var(--accent); color: var(--bg); }
+
+        @media (max-width: 980px) {
+            .main { grid-template-columns: 1fr; }
+            .rail { display: none; }
+            .transcript { padding: 40px 24px 24px; }
+            .dock { padding: 16px 24px 20px; }
+            .welcome-title { font-size: 40px; }
+            .suggested { grid-template-columns: 1fr; }
+            .topbar { grid-template-columns: 1fr auto; }
+            .topbar-center { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+
+        <header class="topbar">
+            <div class="brand">
+                <div>
+                    <div class="brand-mark">The Archive</div>
+                    <div class="brand-sub">RETRIEVAL CONSOLE · v0.2</div>
+                </div>
+            </div>
+            <div class="topbar-center">
+                <div class="meta-item">
+                    <span class="label">MODEL</span>
+                    <span class="value" id="metaModel">—</span>
+                </div>
+                <div class="meta-item">
+                    <span class="label">PERSONA</span>
+                    <select class="persona-select" id="personaSelect" title="Switch voice"></select>
+                </div>
+                <div class="meta-item">
+                    <span class="label">SESSION</span>
+                    <span class="value" id="sessionId">—</span>
+                </div>
+            </div>
+            <div class="topbar-right">
+                <div class="status-pill">
+                    <span class="status-dot offline" id="topDot"></span>
+                    <span id="topStatusText">Connecting</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="main">
+
+            <aside class="rail">
+
+                <section class="rail-section">
+                    <div class="rail-heading">
+                        <h3>Index</h3>
+                        <span class="num">§ 01</span>
+                    </div>
+
+                    <div class="index-card">
+                        <div class="index-state offline" id="indexState">
+                            <span class="dot"></span>
+                            <span class="text" id="indexStateText">Awaiting connection</span>
+                        </div>
+                        <div class="index-meta">
+                            <div class="item">
+                                <span class="k">Documents</span>
+                                <span class="v" id="metaDocs">—</span>
+                            </div>
+                            <div class="item">
+                                <span class="k">Chunks</span>
+                                <span class="v" id="metaChunks">—</span>
+                            </div>
+                        </div>
+                        <div class="btn-row">
+                            <button class="primary" id="loadBtn">Load</button>
+                            <button id="buildBtn">Build</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="rail-section">
+                    <div class="rail-heading">
+                        <h3>Conversation</h3>
+                        <span class="num">§ 02</span>
+                    </div>
+                    <div class="topic-card">
+                        <input class="topic-input" id="topicInput" placeholder="Topic of conversation…" maxlength="80">
+                        <div class="toggle-row">
+                            <span>Stay on topic</span>
+                            <div class="toggle" id="topicToggle" role="switch" aria-checked="false" tabindex="0"></div>
+                        </div>
+                        <div class="topic-actions">
+                            <button id="newConvoBtn" title="Clears history and topic">New</button>
+                            <button id="exportBtn" title="Download transcript as markdown">Export</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="rail-section" style="flex: 1;">
+                    <div class="rail-heading">
+                        <h3>Sources</h3>
+                        <span class="num" id="sourceCount">§ 03</span>
+                    </div>
+                    <div id="sourcesList">
+                        <p class="empty-state">No retrievals yet. Ask a question and the cited documents will surface here.</p>
+                    </div>
+                </section>
+
+                <section class="rail-section">
+                    <div class="rail-heading">
+                        <h3>Log</h3>
+                        <span class="num">§ 04</span>
+                    </div>
+                    <div class="log" id="logFeed">
+                        <div class="log-entry">
+                            <span class="time" id="bootTime"></span>
+                            <span class="msg">console initialized</span>
+                        </div>
+                    </div>
+                </section>
+            </aside>
+
+            <section class="chat">
+                <div class="transcript" id="transcript">
+                    <div class="transcript-inner" id="transcriptInner">
+                        <div class="welcome" id="welcome">
+                            <div class="welcome-eyebrow">A retrieval-augmented research console</div>
+                            <h1 class="welcome-title">Ask the <em>archive</em>,<br>read the answer.</h1>
+                            <p class="welcome-body">
+                                Load an existing index or build one from your corpus, then converse with your documents.
+                                Citations surface in the right rail. Everything is local — your endpoint, your data.
+                            </p>
+                            <div class="suggested">
+                                <button class="suggested-prompt">What are the main themes across the indexed documents?</button>
+                                <button class="suggested-prompt">Tell me about machine learning.</button>
+                                <button class="suggested-prompt">Who was William the Conqueror?</button>
+                                <button class="suggested-prompt">Summarise the most recently added source.</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dock">
+                    <div class="dock-inner">
+                        <div class="input-frame disabled" id="inputFrame">
+                            <span class="input-prompt">&gt;</span>
+                            <textarea id="userInput" placeholder="Pose a question to the archive…" rows="1" disabled></textarea>
+                            <div class="input-actions">
+                                <button id="sendBtn" disabled>
+                                    Send <span class="kbd" style="background: rgba(0,0,0,0.15); border-color: rgba(0,0,0,0.2); color: rgba(0,0,0,0.6);">↵</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="dock-footer">
+                            <div class="left">
+                                <span>Shift + ↵ newline</span>
+                                <span>Esc clear</span>
+                                <span>Ctrl + K new convo</span>
+                            </div>
+                            <span id="charCount">0 chars</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+    (() => {
+        const API = "";  // same-origin
+        const $ = (id) => document.getElementById(id);
+
+        marked.setOptions({ breaks: true, gfm: true });
+        const renderMd = (text) => DOMPurify.sanitize(marked.parse(text || ""));
+
+        const state = {
+            indexLoaded: false,
+            serverOnline: false,
+            sending: false,
+            queryCount: 0,
+            history: [],
+            persona: "archivist",
+            topic: "",
+            stayOnTopic: false,
+            personaList: [],
+        };
+
+        const sessionId = Math.random().toString(36).slice(2, 8).toUpperCase();
+        $("sessionId").textContent = sessionId;
+        $("bootTime").textContent = nowStamp();
+
+        // ─── Boot: load personas ───
+        async function loadPersonas() {
+            try {
+                const r = await fetch(`${API}/personas`);
+                const d = await r.json();
+                state.personaList = d.personas;
+                state.persona = d.default;
+                const sel = $("personaSelect");
+                sel.innerHTML = "";
+                d.personas.forEach((p) => {
+                    const opt = document.createElement("option");
+                    opt.value = p.id;
+                    opt.textContent = p.name;
+                    opt.title = p.blurb;
+                    if (p.id === d.default) opt.selected = true;
+                    sel.appendChild(opt);
+                });
+            } catch {
+                // server not up yet, no-op; checkStatus will retry
+            }
+        }
+
+        // ─── Status ───
+        async function checkStatus() {
+            try {
+                const r = await fetch(`${API}/status`);
+                const d = await r.json();
+                state.serverOnline = true;
+                state.indexLoaded = d.index_loaded;
+                $("metaModel").textContent = d.model || "—";
+                $("metaDocs").textContent = d.documents ?? (d.index_loaded ? "?" : "—");
+                $("metaChunks").textContent = d.chunks ?? (d.index_loaded ? "?" : "—");
+            } catch {
+                state.serverOnline = false;
+                state.indexLoaded = false;
+            }
+            updateStatus();
+        }
+
+        function updateStatus() {
+            const topDot = $("topDot");
+            const topText = $("topStatusText");
+            const indexState = $("indexState");
+            const indexText = $("indexStateText");
+            const inputEl = $("userInput");
+            const sendBtn = $("sendBtn");
+            const frame = $("inputFrame");
+
+            if (!state.serverOnline) {
+                topDot.className = "status-dot offline";
+                topText.textContent = "Server offline";
+                indexState.className = "index-state offline";
+                indexText.textContent = "Server unreachable";
+                inputEl.disabled = true;
+                sendBtn.disabled = true;
+                frame.classList.add("disabled");
+                return;
+            }
+
+            if (state.indexLoaded) {
+                topDot.className = "status-dot ready";
+                topText.textContent = "Ready";
+                indexState.className = "index-state ready";
+                indexText.textContent = "Index loaded · ready to query";
+                inputEl.disabled = state.sending;
+                sendBtn.disabled = state.sending;
+                frame.classList.toggle("disabled", state.sending);
+            } else {
+                topDot.className = "status-dot warn";
+                topText.textContent = "No index";
+                indexState.className = "index-state warn";
+                indexText.textContent = "No index — build to begin";
+                inputEl.disabled = true;
+                sendBtn.disabled = true;
+                frame.classList.add("disabled");
+            }
+        }
+
+        // ─── Index ops ───
+        async function loadIndex() {
+            logEntry("LOAD", "loading index", "warn");
+            try {
+                const r = await fetch(`${API}/load-index`, { method: "POST" });
+                const d = await r.json();
+                if (d.success) {
+                    state.indexLoaded = true;
+                    if (d.documents !== undefined) $("metaDocs").textContent = d.documents ?? "?";
+                    if (d.chunks !== undefined) $("metaChunks").textContent = d.chunks ?? "?";
+                    updateStatus();
+                    systemMessage("Index loaded.", "success");
+                    logEntry("OK", "index loaded", "ok");
+                } else {
+                    systemMessage(d.message, "error");
+                    logEntry("ERR", d.message || "load failed", "err");
+                }
+            } catch (e) {
+                systemMessage("Server unreachable: " + e.message, "error");
+                logEntry("ERR", "connection failed", "err");
+            }
+        }
+
+        async function buildIndex() {
+            systemMessage("Building index from corpus — this may take a moment.", "");
+            logEntry("BUILD", "index build started", "warn");
+            try {
+                const r = await fetch(`${API}/build-index`, { method: "POST" });
+                const d = await r.json();
+                if (d.success) {
+                    state.indexLoaded = true;
+                    if (d.documents !== undefined) $("metaDocs").textContent = d.documents ?? "?";
+                    if (d.chunks !== undefined) $("metaChunks").textContent = d.chunks ?? "?";
+                    updateStatus();
+                    systemMessage("Index built and persisted.", "success");
+                    logEntry("OK", "index built", "ok");
+                } else {
+                    systemMessage(d.message, "error");
+                    logEntry("ERR", d.message || "build failed", "err");
+                }
+            } catch (e) {
+                systemMessage("Server unreachable: " + e.message, "error");
+                logEntry("ERR", "connection failed", "err");
+            }
+        }
+
+        // ─── Chat (streaming) ───
+        async function send(prefilled) {
+            if (state.sending || !state.indexLoaded) return;
+            const input = $("userInput");
+            const question = (prefilled ?? input.value).trim();
+            if (!question) return;
+
+            // Auto-derive topic from the first user message if none set.
+            if (!state.topic && state.history.length === 0) {
+                state.topic = question.length > 80 ? question.slice(0, 77) + "…" : question;
+                $("topicInput").value = state.topic;
+            }
+
+            state.sending = true;
+            updateStatus();
+            input.value = "";
+            autosize(input);
+            updateCharCount();
+
+            dismissWelcome();
+            addEntry("user", escapeHtml(question), { plain: true });
+            state.history.push({ role: "user", content: question });
+            state.queryCount++;
+            logEntry("Q" + String(state.queryCount).padStart(3, "0"), "querying corpus", "warn");
+
+            const { entry, body } = makeAssistantEntry();
+            body.innerHTML = `
+                <div class="thinking">
+                    Retrieving from corpus
+                    <span class="thinking-dots"><span></span><span></span><span></span></span>
+                </div>`;
+
+            let assembled = "";
+            let sources = [];
+            let usedWiki = false;
+            let firstDelta = true;
+
+            try {
+                const resp = await fetch(`${API}/chat`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        question,
+                        history: state.history.slice(0, -1),
+                        stream: true,
+                        persona: state.persona,
+                        topic: state.topic,
+                        stay_on_topic: state.stayOnTopic,
+                    }),
+                });
+                if (!resp.ok) throw new Error("HTTP " + resp.status);
+
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buf = "";
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    buf += decoder.decode(value, { stream: true });
+                    const events = buf.split("\n\n");
+                    buf = events.pop() || "";
+                    for (const ev of events) {
+                        const line = ev.split("\n").find((l) => l.startsWith("data: "));
+                        if (!line) continue;
+                        let payload;
+                        try { payload = JSON.parse(line.slice(6)); } catch { continue; }
+
+                        if (payload.type === "delta") {
+                            if (firstDelta) { body.innerHTML = ""; firstDelta = false; }
+                            assembled += payload.text;
+                            body.innerHTML = renderMd(assembled);
+                            scrollToBottom();
+                        } else if (payload.type === "done") {
+                            sources = payload.sources || [];
+                            usedWiki = !!payload.used_wikipedia;
+                        } else if (payload.type === "error") {
+                            assembled = "**Error:** " + payload.message;
+                            body.innerHTML = renderMd(assembled);
+                        }
+                    }
+                }
+                if (firstDelta) body.innerHTML = renderMd(assembled || "(no response)");
+
+                state.history.push({ role: "assistant", content: assembled });
+
+                if (usedWiki) {
+                    const header = entry.querySelector(".entry-header");
+                    const badge = document.createElement("span");
+                    badge.className = "badge-wiki";
+                    badge.textContent = "Wikipedia";
+                    header.insertBefore(badge, header.querySelector(".rule"));
+                }
+
+                updateSources(sources);
+                appendEntryActions(entry, question, assembled);
+                logEntry("A" + String(state.queryCount).padStart(3, "0"), "response received" + (usedWiki ? " · wikipedia" : ""), "ok");
+            } catch (e) {
+                body.innerHTML = renderMd("**Error:** " + e.message);
+                logEntry("ERR", "request failed: " + e.message, "err");
+            } finally {
+                state.sending = false;
+                updateStatus();
+                input.focus();
+                scrollToBottom();
+            }
+        }
+
+        function makeAssistantEntry() {
+            const inner = $("transcriptInner");
+            const entry = document.createElement("article");
+            entry.className = "entry assistant";
+            entry.innerHTML = `
+                <div class="entry-header">
+                    <span class="tag">RESPONSE</span>
+                    <span>${nowStamp()}</span>
+                    <span class="rule"></span>
+                    <span>${escapeHtml(currentPersonaName().toUpperCase())}</span>
+                </div>
+                <div class="entry-body"></div>
+            `;
+            inner.appendChild(entry);
+            scrollToBottom();
+            return { entry, body: entry.querySelector(".entry-body") };
+        }
+
+        function appendEntryActions(entry, question, answer) {
+            const actions = document.createElement("div");
+            actions.className = "entry-actions";
+
+            const copyBtn = document.createElement("button");
+            copyBtn.textContent = "Copy";
+            copyBtn.onclick = async () => {
+                try {
+                    await navigator.clipboard.writeText(answer);
+                    copyBtn.textContent = "Copied";
+                    setTimeout(() => (copyBtn.textContent = "Copy"), 1200);
+                } catch {
+                    copyBtn.textContent = "Failed";
+                }
+            };
+
+            const regenBtn = document.createElement("button");
+            regenBtn.textContent = "Regenerate";
+            regenBtn.onclick = () => {
+                if (state.sending) return;
+                // Remove the last assistant turn from history and re-ask the same question.
+                if (state.history.length && state.history[state.history.length - 1].role === "assistant") {
+                    state.history.pop();
+                }
+                entry.remove();
+                // The previous user turn is still in history; re-send identical question without
+                // re-pushing user to history.
+                send.__forceQuestion = question;
+                sendInternal(question);
+            };
+
+            actions.appendChild(copyBtn);
+            actions.appendChild(regenBtn);
+            entry.appendChild(actions);
+        }
+
+        // Internal re-send that doesn't re-push the user turn (used by regenerate).
+        async function sendInternal(question) {
+            if (state.sending || !state.indexLoaded) return;
+            state.sending = true;
+            updateStatus();
+
+            const { entry, body } = makeAssistantEntry();
+            body.innerHTML = `<div class="thinking">Regenerating<span class="thinking-dots"><span></span><span></span><span></span></span></div>`;
+
+            let assembled = "";
+            let sources = [];
+            let usedWiki = false;
+            let firstDelta = true;
+
+            try {
+                const resp = await fetch(`${API}/chat`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        question,
+                        history: state.history.slice(0, -1),  // history excludes the user turn we're re-asking
+                        stream: true,
+                        persona: state.persona,
+                        topic: state.topic,
+                        stay_on_topic: state.stayOnTopic,
+                    }),
+                });
+                if (!resp.ok) throw new Error("HTTP " + resp.status);
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buf = "";
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    buf += decoder.decode(value, { stream: true });
+                    const events = buf.split("\n\n");
+                    buf = events.pop() || "";
+                    for (const ev of events) {
+                        const line = ev.split("\n").find((l) => l.startsWith("data: "));
+                        if (!line) continue;
+                        let payload;
+                        try { payload = JSON.parse(line.slice(6)); } catch { continue; }
+                        if (payload.type === "delta") {
+                            if (firstDelta) { body.innerHTML = ""; firstDelta = false; }
+                            assembled += payload.text;
+                            body.innerHTML = renderMd(assembled);
+                            scrollToBottom();
+                        } else if (payload.type === "done") {
+                            sources = payload.sources || [];
+                            usedWiki = !!payload.used_wikipedia;
+                        } else if (payload.type === "error") {
+                            assembled = "**Error:** " + payload.message;
+                            body.innerHTML = renderMd(assembled);
+                        }
+                    }
+                }
+                state.history.push({ role: "assistant", content: assembled });
+                if (usedWiki) {
+                    const header = entry.querySelector(".entry-header");
+                    const badge = document.createElement("span");
+                    badge.className = "badge-wiki";
+                    badge.textContent = "Wikipedia";
+                    header.insertBefore(badge, header.querySelector(".rule"));
+                }
+                updateSources(sources);
+                appendEntryActions(entry, question, assembled);
+            } catch (e) {
+                body.innerHTML = renderMd("**Error:** " + e.message);
+            } finally {
+                state.sending = false;
+                updateStatus();
+                scrollToBottom();
+            }
+        }
+
+        function addEntry(role, content, opts = {}) {
+            const inner = $("transcriptInner");
+            const entry = document.createElement("article");
+            entry.className = "entry " + role;
+            const tag = role === "user" ? "QUERY" : "RESPONSE";
+            const who = role === "user" ? "YOU" : currentPersonaName().toUpperCase();
+            entry.innerHTML = `
+                <div class="entry-header">
+                    <span class="tag">${tag}</span>
+                    <span>${nowStamp()}</span>
+                    <span class="rule"></span>
+                    <span>${escapeHtml(who)}</span>
+                </div>
+                <div class="entry-body">${opts.plain ? content : renderMd(content)}</div>
+            `;
+            inner.appendChild(entry);
+            scrollToBottom();
+            return entry;
+        }
+
+        function systemMessage(text, kind) {
+            const inner = $("transcriptInner");
+            const entry = document.createElement("article");
+            entry.className = "entry system" + (kind ? " " + kind : "");
+            entry.innerHTML = `
+                <div class="entry-header">
+                    <span class="tag">SYSTEM</span>
+                    <span>${nowStamp()}</span>
+                    <span class="rule"></span>
+                </div>
+                <div class="entry-body">${escapeHtml(text)}</div>
+            `;
+            inner.appendChild(entry);
+            scrollToBottom();
+        }
+
+        function updateSources(sources) {
+            const list = $("sourcesList");
+            const count = $("sourceCount");
+            if (!sources || !sources.length) {
+                count.textContent = "§ 03";
+                return;
+            }
+            list.innerHTML = "";
+            sources.forEach((s, i) => {
+                const el = document.createElement("div");
+                el.className = "source";
+                el.innerHTML = `
+                    <div class="source-head">
+                        <div class="source-title">${escapeHtml(s.file || "document")}</div>
+                        <span class="source-num">[${String(i + 1).padStart(2, "0")}]</span>
+                    </div>
+                    <div class="source-meta">score ${s.score}</div>
+                    <div class="source-snippet">${escapeHtml(s.text || "")}</div>
+                `;
+                el.addEventListener("click", () => el.classList.toggle("expanded"));
+                list.appendChild(el);
+            });
+            count.textContent = "§ " + String(sources.length).padStart(2, "0");
+        }
+
+        function logEntry(code, msg, kind) {
+            const feed = $("logFeed");
+            const el = document.createElement("div");
+            el.className = "log-entry " + (kind || "");
+            el.innerHTML = `<span class="time">${nowStamp()}</span><span class="msg">[${code}] ${escapeHtml(msg)}</span>`;
+            feed.appendChild(el);
+            feed.scrollTop = feed.scrollHeight;
+        }
+
+        function dismissWelcome() {
+            const w = $("welcome");
+            if (!w) return;
+            w.style.transition = "opacity 0.3s, transform 0.3s";
+            w.style.opacity = "0";
+            w.style.transform = "translateY(-8px)";
+            setTimeout(() => w.remove(), 300);
+        }
+
+        function newConversation() {
+            state.history = [];
+            state.topic = "";
+            state.queryCount = 0;
+            $("topicInput").value = "";
+            $("transcriptInner").innerHTML = "";
+            updateSources([]);
+            const inner = $("transcriptInner");
+            const w = document.createElement("div");
+            w.className = "welcome";
+            w.id = "welcome";
+            w.innerHTML = `
+                <div class="welcome-eyebrow">A new conversation</div>
+                <h1 class="welcome-title">The page is <em>blank</em>.<br>Ask anything.</h1>
+                <p class="welcome-body">History cleared. Topic reset.</p>
+            `;
+            inner.appendChild(w);
+            logEntry("NEW", "conversation reset", "warn");
+        }
+
+        function exportTranscript() {
+            const lines = [
+                `# The Archive — Transcript`,
+                ``,
+                `*Session ${sessionId} · Persona: ${currentPersonaName()}` +
+                    (state.topic ? ` · Topic: ${state.topic}` : "") + `*`,
+                ``,
+            ];
+            state.history.forEach((m) => {
+                lines.push(m.role === "user" ? `## You\n\n${m.content}\n` : `## ${currentPersonaName()}\n\n${m.content}\n`);
+            });
+            const blob = new Blob([lines.join("\n")], { type: "text/markdown" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `archive-${sessionId}.md`;
+            a.click();
+            URL.revokeObjectURL(url);
+            logEntry("EXP", "transcript exported", "ok");
+        }
+
+        // ─── Helpers ───
+        function currentPersonaName() {
+            const p = state.personaList.find((x) => x.id === state.persona);
+            return p ? p.name : "Archive";
+        }
+        function nowStamp() {
+            return new Date().toTimeString().slice(0, 8);
+        }
+        function escapeHtml(s) {
+            return String(s)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
+        }
+        function autosize(el) {
+            el.style.height = "auto";
+            el.style.height = Math.min(el.scrollHeight, 200) + "px";
+        }
+        function updateCharCount() {
+            const v = $("userInput").value;
+            $("charCount").textContent = v.length + " chars";
+        }
+        function scrollToBottom() {
+            const t = $("transcript");
+            t.scrollTo({ top: t.scrollHeight, behavior: "smooth" });
+        }
+
+        // ─── Bindings ───
+        const inputEl = $("userInput");
+        inputEl.addEventListener("input", () => { autosize(inputEl); updateCharCount(); });
+        inputEl.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                send();
+            } else if (e.key === "Escape") {
+                inputEl.value = "";
+                autosize(inputEl);
+                updateCharCount();
+            }
+        });
+        $("sendBtn").addEventListener("click", () => send());
+        $("loadBtn").addEventListener("click", loadIndex);
+        $("buildBtn").addEventListener("click", buildIndex);
+        $("newConvoBtn").addEventListener("click", newConversation);
+        $("exportBtn").addEventListener("click", exportTranscript);
+        $("personaSelect").addEventListener("change", (e) => {
+            state.persona = e.target.value;
+            logEntry("PER", "persona → " + currentPersonaName(), "warn");
+        });
+        $("topicInput").addEventListener("input", (e) => {
+            state.topic = e.target.value.trim();
+        });
+        $("topicToggle").addEventListener("click", () => {
+            state.stayOnTopic = !state.stayOnTopic;
+            $("topicToggle").classList.toggle("on", state.stayOnTopic);
+            $("topicToggle").setAttribute("aria-checked", state.stayOnTopic);
+            logEntry("TOPIC", state.stayOnTopic ? "anchored" : "free", "warn");
+        });
+
+        document.addEventListener("click", (e) => {
+            if (e.target.classList?.contains("suggested-prompt")) {
+                const text = e.target.textContent.trim();
+                inputEl.value = text;
+                inputEl.focus();
+                autosize(inputEl);
+                updateCharCount();
+            }
+        });
+
+        document.addEventListener("keydown", (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+                e.preventDefault();
+                newConversation();
+            }
+        });
+
+        // Boot
+        (async () => {
+            await loadPersonas();
+            await checkStatus();
+            setInterval(() => { if (!state.sending) checkStatus(); }, 8000);
+        })();
+    })();
+    </script>
+</body>
+</html>

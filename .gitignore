@@ -1,0 +1,12 @@
+venv/
+.venv/
+chromadb_data/
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.log
+.DS_Store
+.claude/
+.idea/
+.vscode/

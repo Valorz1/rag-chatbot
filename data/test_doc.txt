@@ -1,0 +1,1 @@
+﻿Artificial Intelligence (AI) is transforming the world. Machine learning is a subset of AI that enables computers to learn from data. Python is a popular programming language for AI and data science.
